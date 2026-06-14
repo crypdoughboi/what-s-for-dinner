@@ -4,8 +4,15 @@ import type {} from "@tanstack/react-start";
 const BASE_URL = "https://id-preview--644c57c2-2fd1-4c5d-aaea-3831fbb72b5f.lovable.app";
 
 export const Route = createFileRoute("/sitemap.xml")({
-  server: { handlers: { GET: async () => new Response(
-    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${BASE_URL}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n</urlset>`,
-    { headers: { "Content-Type": "application/xml", "Cache-Control": "public, max-age=3600" } },
-  ) } },
+  server: {
+    handlers: {
+      GET: async () =>
+        new Response(
+          `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${BASE_URL}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n</urlset>`,
+          {
+            headers: { "Content-Type": "application/xml", "Cache-Control": "public, max-age=3600" },
+          },
+        ),
+    },
+  },
 });

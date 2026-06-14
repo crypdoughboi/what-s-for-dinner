@@ -10,7 +10,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-        kitchen: "rounded-full bg-primary text-primary-foreground shadow-kitchen hover:-translate-y-0.5 hover:bg-primary/92",
+        kitchen:
+          "rounded-full bg-primary text-primary-foreground shadow-kitchen hover:-translate-y-0.5 hover:bg-primary/92",
         cream: "rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80",
         dark: "rounded-full bg-foreground text-background shadow-kitchen hover:-translate-y-0.5 hover:opacity-90",
         destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",

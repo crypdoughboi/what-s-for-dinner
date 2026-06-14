@@ -1,0 +1,61 @@
+CREATE OR REPLACE FUNCTION public.set_updated_at() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$;
+
+CREATE TABLE public.profiles (id uuid PRIMARY KEY, display_name text, avatar_url text, is_guest boolean NOT NULL DEFAULT false, dietary_preferences text[] NOT NULL DEFAULT '{}', theme text NOT NULL DEFAULT 'system' CHECK (theme IN ('light','dark','system')), skill_level text NOT NULL DEFAULT 'easy' CHECK (skill_level IN ('easy','medium','project')), default_servings integer NOT NULL DEFAULT 2 CHECK (default_servings > 0), created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated; GRANT ALL ON public.profiles TO service_role;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage own profile" ON public.profiles FOR ALL TO authenticated USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.households (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL, owner_id uuid NOT NULL, invite_code text NOT NULL UNIQUE CHECK (char_length(invite_code)=6), created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.households TO authenticated; GRANT ALL ON public.households TO service_role;
+ALTER TABLE public.households ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Owners manage households" ON public.households FOR ALL TO authenticated USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
+CREATE TRIGGER households_updated_at BEFORE UPDATE ON public.households FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.household_members (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), household_id uuid NOT NULL REFERENCES public.households(id) ON DELETE CASCADE, user_id uuid NOT NULL, role text NOT NULL DEFAULT 'member' CHECK (role IN ('owner','member')), access_level text NOT NULL DEFAULT 'edit' CHECK (access_level IN ('view','edit')), created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), UNIQUE(household_id,user_id));
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.household_members TO authenticated; GRANT ALL ON public.household_members TO service_role;
+ALTER TABLE public.household_members ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Members view memberships" ON public.household_members FOR SELECT TO authenticated USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM public.households h WHERE h.id=household_id AND h.owner_id=auth.uid()));
+CREATE POLICY "Owners manage memberships" ON public.household_members FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM public.households h WHERE h.id=household_id AND h.owner_id=auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM public.households h WHERE h.id=household_id AND h.owner_id=auth.uid()));
+CREATE TRIGGER household_members_updated_at BEFORE UPDATE ON public.household_members FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE OR REPLACE FUNCTION public.can_view_household(_household_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT EXISTS(SELECT 1 FROM public.households h WHERE h.id=_household_id AND h.owner_id=auth.uid()) OR EXISTS(SELECT 1 FROM public.household_members hm WHERE hm.household_id=_household_id AND hm.user_id=auth.uid()) $$;
+CREATE OR REPLACE FUNCTION public.can_edit_household(_household_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT EXISTS(SELECT 1 FROM public.households h WHERE h.id=_household_id AND h.owner_id=auth.uid()) OR EXISTS(SELECT 1 FROM public.household_members hm WHERE hm.household_id=_household_id AND hm.user_id=auth.uid() AND hm.access_level='edit') $$;
+
+CREATE TABLE public.locations (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL, household_id uuid REFERENCES public.households(id) ON DELETE CASCADE, name text NOT NULL, icon text, is_default boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.locations TO authenticated; GRANT ALL ON public.locations TO service_role; ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users view locations" ON public.locations FOR SELECT TO authenticated USING (owner_id=auth.uid() OR (household_id IS NOT NULL AND public.can_view_household(household_id)));
+CREATE POLICY "Users change locations" ON public.locations FOR ALL TO authenticated USING (owner_id=auth.uid() OR (household_id IS NOT NULL AND public.can_edit_household(household_id))) WITH CHECK (owner_id=auth.uid() OR (household_id IS NOT NULL AND public.can_edit_household(household_id)));
+CREATE TRIGGER locations_updated_at BEFORE UPDATE ON public.locations FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.categories (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL, name text NOT NULL, icon text, color text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.categories TO authenticated; GRANT ALL ON public.categories TO service_role; ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage categories" ON public.categories FOR ALL TO authenticated USING (owner_id=auth.uid()) WITH CHECK (owner_id=auth.uid()); CREATE TRIGGER categories_updated_at BEFORE UPDATE ON public.categories FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.tags (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL, name text NOT NULL, color text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.tags TO authenticated; GRANT ALL ON public.tags TO service_role; ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage tags" ON public.tags FOR ALL TO authenticated USING (owner_id=auth.uid()) WITH CHECK (owner_id=auth.uid()); CREATE TRIGGER tags_updated_at BEFORE UPDATE ON public.tags FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.inventory_items (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL, household_id uuid REFERENCES public.households(id) ON DELETE CASCADE, location_id uuid REFERENCES public.locations(id) ON DELETE SET NULL, category_id uuid REFERENCES public.categories(id) ON DELETE SET NULL, name text NOT NULL, quantity numeric NOT NULL DEFAULT 1 CHECK(quantity>=0), unit text NOT NULL DEFAULT 'item', expiration_date date, tags text[] NOT NULL DEFAULT '{}', notes text, recently_added boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.inventory_items TO authenticated; GRANT ALL ON public.inventory_items TO service_role; ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users view inventory" ON public.inventory_items FOR SELECT TO authenticated USING (owner_id=auth.uid() OR (household_id IS NOT NULL AND public.can_view_household(household_id)));
+CREATE POLICY "Users change inventory" ON public.inventory_items FOR ALL TO authenticated USING (owner_id=auth.uid() OR (household_id IS NOT NULL AND public.can_edit_household(household_id))) WITH CHECK (owner_id=auth.uid() OR (household_id IS NOT NULL AND public.can_edit_household(household_id)));
+CREATE INDEX inventory_expiration_idx ON public.inventory_items(expiration_date); CREATE INDEX inventory_household_idx ON public.inventory_items(household_id); CREATE TRIGGER inventory_updated_at BEFORE UPDATE ON public.inventory_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.meal_ideas (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL, name text NOT NULL, description text, image_url text, total_minutes integer, difficulty text CHECK(difficulty IN ('easy','medium','project')), cooking_method text, vibe text, servings integer NOT NULL DEFAULT 2, ingredients jsonb NOT NULL DEFAULT '[]', instructions jsonb NOT NULL DEFAULT '[]', substitutions jsonb NOT NULL DEFAULT '[]', expiring_used text[] NOT NULL DEFAULT '{}', is_generated boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.meal_ideas TO authenticated; GRANT ALL ON public.meal_ideas TO service_role; ALTER TABLE public.meal_ideas ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage meal ideas" ON public.meal_ideas FOR ALL TO authenticated USING(owner_id=auth.uid()) WITH CHECK(owner_id=auth.uid()); CREATE TRIGGER meal_ideas_updated_at BEFORE UPDATE ON public.meal_ideas FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.saved_meals (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL, meal_id uuid NOT NULL REFERENCES public.meal_ideas(id) ON DELETE CASCADE, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(owner_id,meal_id));
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.saved_meals TO authenticated; GRANT ALL ON public.saved_meals TO service_role; ALTER TABLE public.saved_meals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage saved meals" ON public.saved_meals FOR ALL TO authenticated USING(owner_id=auth.uid()) WITH CHECK(owner_id=auth.uid());
+
+CREATE TABLE public.shopping_list_items (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL, household_id uuid REFERENCES public.households(id) ON DELETE CASCADE, source_meal_id uuid REFERENCES public.meal_ideas(id) ON DELETE SET NULL, name text NOT NULL, quantity numeric NOT NULL DEFAULT 1, unit text NOT NULL DEFAULT 'item', category text NOT NULL DEFAULT 'Other', checked boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.shopping_list_items TO authenticated; GRANT ALL ON public.shopping_list_items TO service_role; ALTER TABLE public.shopping_list_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users view shopping items" ON public.shopping_list_items FOR SELECT TO authenticated USING(owner_id=auth.uid() OR (household_id IS NOT NULL AND public.can_view_household(household_id)));
+CREATE POLICY "Users change shopping items" ON public.shopping_list_items FOR ALL TO authenticated USING(owner_id=auth.uid() OR (household_id IS NOT NULL AND public.can_edit_household(household_id))) WITH CHECK(owner_id=auth.uid() OR (household_id IS NOT NULL AND public.can_edit_household(household_id)));
+CREATE INDEX shopping_household_idx ON public.shopping_list_items(household_id); CREATE TRIGGER shopping_updated_at BEFORE UPDATE ON public.shopping_list_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.reminder_settings (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL UNIQUE, expiring_three_days boolean NOT NULL DEFAULT true, expiring_tomorrow boolean NOT NULL DEFAULT true, expired_summary boolean NOT NULL DEFAULT true, household_invite_accepted boolean NOT NULL DEFAULT true, weekly_meal_ideas boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.reminder_settings TO authenticated; GRANT ALL ON public.reminder_settings TO service_role; ALTER TABLE public.reminder_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage reminders" ON public.reminder_settings FOR ALL TO authenticated USING(owner_id=auth.uid()) WITH CHECK(owner_id=auth.uid()); CREATE TRIGGER reminder_settings_updated_at BEFORE UPDATE ON public.reminder_settings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();

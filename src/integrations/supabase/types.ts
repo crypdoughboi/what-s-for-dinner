@@ -476,8 +476,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_edit_household: { Args: { _household_id: string }; Returns: boolean }
-      can_view_household: { Args: { _household_id: string }; Returns: boolean }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never

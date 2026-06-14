@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from "react";
 import {
   Apple,

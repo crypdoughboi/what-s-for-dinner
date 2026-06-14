@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -77,11 +78,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "What The Fridge?! — Cook What You Have" },
+      { title: "What The Fridge?! - Plan Meals, Shop Smarter" },
       {
         name: "description",
         content:
-          "Turn your real kitchen inventory into delicious meal ideas, waste less food, and shop with a plan.",
+          "Plan meals, build your grocery list, track what is in your kitchen, and waste less food.",
       },
       { name: "author", content: "What The Fridge?!" },
       { property: "og:title", content: "What The Fridge?!" },
@@ -133,6 +134,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <Toaster richColors position="top-center" />
     </QueryClientProvider>
   );
 }

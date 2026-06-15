@@ -15,6 +15,7 @@ import {
 import { useKitchen } from "@/lib/kitchen/store";
 
 export const Route = createFileRoute("/kitchen")({
+  ssr: false,
   component: KitchenPage,
 });
 

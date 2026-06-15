@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ShoppingList } from "@/components/shop/ShoppingList";
 
 export const Route = createFileRoute("/shop")({
+  ssr: false,
   component: ShopPage,
 });
 

@@ -7,6 +7,7 @@ import { ReviewBatch } from "@/components/add/ReviewBatch";
 import type { CaptureKind } from "@/lib/kitchen/types";
 
 export const Route = createFileRoute("/add")({
+  ssr: false,
   component: AddPage,
 });
 

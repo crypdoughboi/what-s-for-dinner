@@ -44,8 +44,6 @@ export function MealCard({ ranked, onSwipe, onCook, index, isTop }: Props) {
         y,
         rotate,
         zIndex: 10 - index,
-        scale: 1 - index * 0.04,
-        y: index * 8,
       }}
       animate={{ scale: 1 - index * 0.04, y: index * 8 }}
       transition={{ type: "spring", stiffness: 220, damping: 26 }}

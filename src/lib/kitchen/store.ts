@@ -235,8 +235,6 @@ export const useKitchen = create<KitchenState>()((set, get) => ({
           constraintText: "",
           captureBatch: [],
           shoppingChecked: {},
-        }),
     }),
-    { name: "wtf-kitchen-v1" },
-  ),
-);
+}));
+

@@ -66,9 +66,7 @@ interface KitchenState {
 const uid = () => Math.random().toString(36).slice(2, 10);
 const nowIso = () => new Date().toISOString();
 
-export const useKitchen = create<KitchenState>()(
-  persist(
-    (set, get) => ({
+export const useKitchen = create<KitchenState>()((set, get) => ({
       inventory: SEED_INVENTORY,
       meals: SEED_MEALS,
       taste: {},

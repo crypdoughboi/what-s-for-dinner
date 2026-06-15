@@ -2,6 +2,7 @@ import { AnimatePresence } from "framer-motion";
 import { Layers, RotateCcw } from "lucide-react";
 import { useState } from "react";
 
+import { useRankedDeck } from "@/lib/kitchen/hooks";
 import { useKitchen } from "@/lib/kitchen/store";
 import type { Meal, SwipeSignal } from "@/lib/kitchen/types";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { MealCard } from "./MealCard";
 import { CookSheet } from "../cook/CookSheet";
 
 export function MealDeck() {
-  const ranked = useKitchen((s) => s.rankedDeck());
+  const ranked = useRankedDeck();
   const swipe = useKitchen((s) => s.swipe);
   const reset = useKitchen((s) => s.resetDeck);
   const [cooking, setCooking] = useState<Meal | null>(null);

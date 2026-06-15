@@ -2,6 +2,7 @@ import { Check, RefreshCcw, ShoppingBag, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { toast } from "sonner";
 
+import { useShoppingList, useSavedMeals } from "@/lib/kitchen/hooks";
 import { useKitchen } from "@/lib/kitchen/store";
 import type { ShoppingItem } from "@/lib/kitchen/types";
 import { Button } from "@/components/ui/button";
@@ -17,10 +18,10 @@ function groupByMeal(items: ShoppingItem[]) {
 }
 
 export function ShoppingList() {
-  const items = useKitchen((s) => s.shoppingList());
+  const items = useShoppingList();
   const toggle = useKitchen((s) => s.toggleShoppingItem);
   const clearChecked = useKitchen((s) => s.clearCheckedShopping);
-  const savedMeals = useKitchen((s) => s.savedMeals());
+  const savedMeals = useSavedMeals();
 
   const groups = useMemo(() => groupByMeal(items), [items]);
   const checkedCount = items.filter((i) => i.checked).length;

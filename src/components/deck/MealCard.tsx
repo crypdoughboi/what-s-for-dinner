@@ -33,20 +33,20 @@ export function MealCard({ ranked, onSwipe, onCook, index, isTop }: Props) {
     y.set(0);
   }
 
+  const stackStyle = isTop
+    ? { x, y, rotate, zIndex: 10 }
+    : {
+        zIndex: 10 - index,
+        transform: `translateY(${index * 10}px) scale(${1 - index * 0.04})`,
+      };
+
   return (
     <motion.article
       drag={isTop}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
       dragElastic={0.9}
       onDragEnd={handleEnd}
-      style={{
-        x,
-        y,
-        rotate,
-        zIndex: 10 - index,
-      }}
-      animate={{ scale: 1 - index * 0.04, y: index * 8 }}
-      transition={{ type: "spring", stiffness: 220, damping: 26 }}
+      style={stackStyle}
       className="app-card absolute inset-0 flex touch-none flex-col overflow-hidden bg-card"
     >
       <div className="relative h-[46%] w-full overflow-hidden bg-muted">

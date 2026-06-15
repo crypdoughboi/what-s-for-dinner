@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 import { parseConstraint } from "./constraint-parser";
 import { inferConsumption } from "./cook-infer";

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { ShoppingList } from "@/components/shop/ShoppingList";
+import { ClientOnly } from "@/components/shell/ClientOnly";
 
 export const Route = createFileRoute("/shop")({
   ssr: false,
@@ -17,8 +18,11 @@ function ShopPage() {
         </p>
       </header>
       <main className="px-4">
-        <ShoppingList />
+        <ClientOnly>
+          <ShoppingList />
+        </ClientOnly>
       </main>
     </div>
   );
 }
+
